@@ -4,7 +4,7 @@
 #include <vector>
 
 std::mutex staition_access;
-std::vector<Train*> trains;
+std::vector<char> station;
 std::vector<std::thread> railways;
 
 class Train
@@ -13,37 +13,37 @@ public:
     char litera;
     int time;
 
-    void trip(RailwayStation* station)
+    void trip()
     {
         while (time > 0)
         {
             std::this_thread::sleep_for(std::chrono::seconds(5));
             time -= 5;
+            std::cout << "Train's " << litera << " time to arrive: " << time << std::endl;
         }
-        arrive(station);
+        std::cout << "Train " << litera << " arrived at the station!" << std::endl;
+        arrive();
     }
 
-    void arrive(RailwayStation* station)
+    void arrive()
     {
-        if (!staition_access.try_lock())
+        if (staition_access.try_lock())
         {
-            std::cout << "Train " << litera << " waiting to arrive!" << std::endl;
+            
+            station.push_back(litera);
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::cout << "Train " << litera << " departs!" << std::endl;
+            staition_access.unlock();
+            
         }
         else
         {
-            char answer;
-            staition_access.lock();
-            station->setTrain(this);
-            //staition_access.unlock();
-            std::cout << "Train " << litera << " requesting permission to send!(Y/N)";
-            std::cin >> answer;
-            if(answer == 'Y') station->departTrain();
+            std::cout << "Train " << litera << " waiting to arrive!" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            arrive();
         }
-    }
-    
-    void depart()
-    {        
-         staition_access.unlock();
+        
+        
     }
 
     Train(char inlitera, int inTime) : litera(inlitera), time(inTime)
@@ -52,37 +52,12 @@ public:
     }
 };
 
-class RailwayStation
-{
-    Train* train;
-
-public:
-    int count;
-
-    void setTrain(Train* inTrain)
-    {
-        train = inTrain;
-        count++;
-        std::cout << "Train " << train->litera << " arrived at the station!" << std::endl;
-    }
-
-    void departTrain()
-    {
-        std::cout << "Train " << train->litera << " departs!" << std::endl;
-        train->depart();
-    }
-
-    RailwayStation()
-    {
-        train = nullptr;
-        count = 0;
-    }
-};
 
 int main()
 {
+    std::vector<Train*> trains;
     std::cout << "Railway Station simulation!\n";
-    RailwayStation* station = new RailwayStation();
+    
 
     for (int i = 0; i < 3; i++)
     {
@@ -98,21 +73,18 @@ int main()
 
     for (int i = 0; i < 3; i++)
     {
-        railways.emplace_back(&Train::trip, trains[i], station);
+        railways.emplace_back(&Train::trip, trains[i]);
     }
-
-    while(station->count > 3)
+       
     for (int i = 0; i < 3; i++)
     {
         railways[i].join();
     }
-
     
-
     for (int i = 2; i >= 0; i--)
     {
         delete trains[i];
     }
-    delete station;
+    
 }
 
